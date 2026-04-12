@@ -198,7 +198,7 @@ can act as a I2C Master or Slave, a SPI Master or Slave, or a USART.
 
 In periphreals with modes, the peripheral type is a union rather than a struct. Its members refer to
 the possible modes the peripheral can be in. Those members are themselves structs that contain the
-registers. All registers here are accessed through a mode even if the register is not specific to a
+registers. Usually, all registers are accessed through a mode even if the register is not specific to a
 particular mode. For example, to access the `STATUS` register in SERCOM8, you need to decide the mode
 you intend to use the instance in first. If you want to use it in SPI Master mode, then you could
 access the register with 
@@ -499,9 +499,9 @@ files in `arm/include/arm_legacy`.
 ```
 
 
-## Interrupts (ARM MCUs)
-The ARM MCU (Cortex-M) devices provide special handling of interrupts and faults that require less
-work from us as developers.
+## Interrupts for ARM Microcontrollers
+The ARM microcontroller (Cortex-M) devices provide special handling of interrupts and faults that
+require less work from us as developers.
 
 ```{note}
 Interrupts and faults are both classes of hardware exceptions, so you may see "exception" used to
@@ -523,7 +523,7 @@ You can read more about how this works in the Technical Reference Manual for you
 will focus on how to add handlers to your code.
 
 If you want to globally enable or disable interrupts, you can use the `__enable_irq()` and `__disable_irq()`
-CMSIS functions to do this.
+CMSIS functions to do this. These do not affect fault interrupts.
 
 ### Interrupt Vectors
 Each device-specific header file contains an enum typedef called `IRQn_Type`. Each member's name is
@@ -572,7 +572,7 @@ for more info on that.
 We need to provide a handler function that is referenced by the interrupt controller's interrupt
 vector table, or IVT. The vector table is defined in the device's startup code that gets linked in
 when you build an app. If you want to see what that is like, you can find the startup code (and linker
-script) for you device in the toolchain install location under  `arm/proc/{procname}`.
+script) for your device in the toolchain install location under  `arm/proc/{procname}`.
 
 By default, most interrupts will jump to a dummy handler that spins in a while loop forever. To
 provide your own handler, simply define a function in your application with the signature
@@ -625,6 +625,15 @@ extern "C" void HardFault_Handler(void)
 }
 ```
 
+If you provide implementations for the other fault handlers, then you need to enable them using the
+`SHCSR` system register. This snippet will enable all three handlers.
+
+```c++
+    SCB->SHCSR |= (SCB_SHCSR_BUSFAULTENA_Msk 
+                    | SCB_SHCSR_USGFAULTENA_Msk
+                    | SCB_SHCSR_MEMFAULTENA_Msk);
+```
+
 There are two additional handlers you might want to override in your code: the `Default_Handler()`
 and the `Reserved_Handler()`. The default implementations for both simply spin in a loop forver.
 The Default Handler is the handler used when you have not provided your own, so you can define your
@@ -641,8 +650,241 @@ you override the Default Handler like any other handler. This presumably is rela
 ```
 
 
-## Interrupts (ARM MPUs)
-TODO
+## Interrupts for ARM Microprocessors
+ARM microprocessor devices have an interrupt mechanism that is very differnt from the microcontrollers.
+They have a fixed vector table with only eight entries, one of which is unused. This vector table is
+located at address 0x00 by default but may be movable depending on the ARM CPU in your device.
+
+If you are wondering how all possible interrupt sources in a device can be handled by only 7 handlers,
+the [Peripheral Interrupts](#peripheral-interrupts) section below will explain that. This introduction
+will be a brief overview of how the ARM MPU interrupt handling system works.
+
+```
+Offset | Description                    | C Function Name
+-------------------------------------------------------------------
+0x00   | Reset Handler                  | void Reset_Handler(void)
+0x04   | Undefined Instruction Handler  | void Undef_Handler(void)
+0x08   | SVC/SWI Handler                | void SVC_Handler(void)
+0x0C   | Prefetch Abort Handler         | void PAbt_Handler(void)
+0x10   | Data Abort Handler             | void DAbt_Handler(void)
+0x14   | Unused (see note below)        | 
+0x18   | IRQ Handler                    | void IRQ_Handler(void)
+0x1C   | FIQ Handler                    | void FIQ_Handler(void)
+```
+
+The startup code puts the program size at 0x14 since it is otherwise unused by the CPU. This can be
+useful for bootloaders that read the vector table to determine how much data needs to be loaded.
+Newer Arm devices with Virtualization Extensions use this for certain hypervisor operations, but no
+Microchip devices support this extension.
+
+Some of the CPU registers are banked depending on the processor's current "mode". The base set of
+registers is used in both "User" and "System" modes. The System mode allows more access to system
+control registers and so is considered a "privileged" mode. This is the mode the startup code will
+use upon entering `main()`. When one of the interrupt handlers is entered, the processor switches
+R13 (stack pointer) and R14 (link register) to the banked version for that mode. The stack pointer
+in all modes is initialized by the startup code and the link register contains the address to which
+to return when the interrupt finishes. In addition, these interrupt modes can access a new register
+called SPSR. This is the Saved Program Status Register and is the value of CPSR when the interrupt
+was entered. The FIQ ("Fast Interrupt Request") mode additionally banks R8-12.
+
+If you want to globally enable or disable interrupts, you can use the `__enable_irq()` and `__disable_irq()`
+CMSIS functions to do this. These do not affect FIQ or fault interrupts. These are included in the
+CMSIS-like functions provided by mchpClang for older ARM devices.
+
+### System Interrupts
+This section will refer to the first five handlers in the vector table as the "system interrupts".
+The startup code provides a `Reset_Handler` that should be useful to most applications. If you want
+to see what that is like, you can find the startup code (and linker script) for your device in the
+toolchain install location under  `arm/proc/{procname}`.
+
+The startup code also provides dummy functions for the others. The dummy functions will simply spin
+in a loop forever, so you will want to provide your own. To do that, implement functions with the
+names shown in the above table in your project and they will override the handlers provided in the
+startup code. If you are building in C++ mode, then you will need to declare your functions with
+`extern "C"`.
+
+ARM MPUs have a system control coprocessor called CP15 that, among many other things, provides
+information that may help you in troubleshooting a fault. Here is an example of a handler that reads
+a few of those CP15 registers. You will want to look in the reference manual for you CPU to see
+what these registers contain on your device.
+
+```c++
+// Remember to include this extern "C" if this is in a C++ file!
+extern "C" void __attribute__((noreturn)) DAbt_Handler(void)
+{
+    uint32_t dfsr = __get_DFSR();       // Data Fault Status Register
+    uint32_t ifsr = __get_IFSR();       // Instruction Fault Status Register
+    uint32_t dfar = __get_DFAR();       // Data Fault Address Register
+
+#ifdef __DEBUG
+    __BKPT();
+#endif
+
+    printf("DAbt_Handler: DFSR=0x%08X, IFSR=0x%08X, DFAR=0x%08X\n", dfsr, ifsr, dfar);
+
+    while(1)
+    {}
+}
+```
+
+If you plan on returning from any of these interrupt handlers, then you should apply the `interrupt`
+attribute to them so that the compiler knows to save and restore register state and use the correct
+return sequence. The attribute takes an optional argument telling it was kind of interrupt is being
+handled: “IRQ”, “FIQ”, “SWI”, “ABORT”, or “UNDEF”.
+
+If you want to read additional registers, such as the link register to determine where the fault
+occurred, then you will need a bit of assembly code to do it. Something like this should work.
+
+```c
+#define read_link_reg(lr)   __asm__ volatile("mov %0, lr" : "=r" (lr))
+```
+
+Note that this will read the current bank of registers. This is useful for the link register, but
+you will need to go through extra work to read the registers from the previous mode. You can either
+explicitly check and set the mode using the `__get_mode()` and `__set_mode()` macros or use an assembly
+snippet with one of the `STM` instruction variants. If the last character in the instruction is `^`,
+then the instruction will store User mode registers regardless of the current mode (remember that
+User and System modes use the same base set of registers).  The `__set_mode()` macro sets the
+low 8 bits of the CPSR register, which covers the 5-bit Mode field and the `I`, `F`, and `T` flags,
+so be sure to configure those, too.
+
+### Peripheral Interrupts
+Peripheral interrupts from things like UARTs are handled by a separate interrupt controller outside
+of the CPU. When an interrupt request comes from a peripheral, the external interrupt controller
+will assert either the IRQ or FIQ interrupt line depending on how you have configured it. It is
+then up to your `IRQ_Handler()` or `FIQ_Handler()` to determine which interrupt needs handling and
+jump to the correct handler.
+
+As of this writing, Microchip devices one of two possible external interrupt controllers: the Advanced
+Interrupt Controller (AIC) that was developed by Atmel (Microchip bought Atmel in 2016) or the
+Generic Interrupt Controller (GIC) that was developed by Arm.
+
+#### Advaned Interrupt Controller
+You will want to consult the datasheet for your device for more information, but here is a quick
+overview of how you would configure a single interrupt on a device with the AIC. This will use the
+Periodic Interval Timer (PIT) on the SAM9X75 as an example. This is basically a free running timer
+peripheral and is very simple.
+
+First, we need to create a handler for our PIT interrupt. This can have any name and can look like a
+normal function. It does not take any arguments nor return any parameters.
+
+```c++
+static void IntervalTimerInterruptHandler(void)
+{
+    // Update our timer in here.
+}
+```
+
+It does not matter if we declare this `extern "C"` in a C++ file. We also do not have to access the
+AIC from within here. You would of course need to clear any peripheral-specific flags if needed, but
+the PIT does not have any.
+
+Next, let's configure the AIC to tell it about our handler. Rather than having a set of configuration
+registers for each interrupt source, you instead set the `AIC_SSR` register to tell it what interrupt
+you need to configure and any accesses to the configuration registers will apply to that interrupt.
+Like with the microcontrollers, the device-specific header files each contain an enum typedef called
+`IRQn_Type`. Each member's name is formatted as `{irq_name}_IRQn` and the value is the interrupt
+number for that request. You can supply this value to the `AIC_SSR` register for convenience.
+
+```c++
+static void ConfigurePITInterrupt(void)
+{
+    // Tell the AIC which interrupt we are configuring.
+    AIC_REGS->AIC_SSR = PIT_IRQn;
+
+    // Use level sensitive mode (which may be the only option for "internal" interrupts) and a
+    // middle priority. This controller uses higher numbers for higher priority, with 7 as the max.
+    // Notice that is the opposite of the micrcontrollers, which use lower numbers for higher priority.
+    AIC_REGS->AIC_SMR = (AIC_SMR_SRCTYPE_INT_LEVEL_SENSITIVE |
+                         AIC_SMR_PRIOR(3));
+
+    // Provide the AIC our handler function. The AIC presents this as the vector to use in its IVR
+    // register when an interrupt occurs. Later in this example, we will create our IRQ_Handler()
+    // function to jump to this handler when the interrupt triggers.
+    AIC_REGS->AIC_SVR = uint32_t(IntervalTimerInterruptHandler);
+
+    // Clear the interrupt flag before enabling it. This normally does NOT need to be done in the
+    // interrupt handler because reading or writing AIC_IVR does this. Your device datasheet might
+    // have info regarding a "Protected Mode" for the AIC. Have a look at that; this example assumes
+    // that is disabled.
+    AIC_REGS->AIC_ICCR = AIC_ICCR_INTCLR_Msk;
+
+    // Enable this interrupt source.
+    AIC_REGS->AIC_IECR = AIC_IECR_INTEN_Msk;
+}
+```
+
+Now we can supply our `IRQ_Handler()` that will run whenever the AIC says we have a new interrupt
+request to handle. The AIC does allow you to specify some interrupts as FIQ interrupts instead, but
+this example will not do that to keep things simple. Clang provides the `interrupt` and `interrupt_save_fp`
+attributes to tell it that a function is an interrupt handler. The compiler will take care of setting
+up the stack, using the correct return sequence, and saving the proper registers. The former does not
+save FPU registers and the latter does. The attribute takes an optional argument telling it was kind
+of interrupt is being handled; we will use "IRQ" here but we could use "FIQ" for an FIQ handler.
+
+```c++
+// This 'extern "C"` is needed if this is in a C++ file!
+extern "C" void __attribute__((interrupt("IRQ"))) IRQ_Handler(void)
+{
+    // The AIC is configured to give us the pointer to the handler in the AIC_IVR register, which
+    // is the default.
+    void (*handler_func)(void) = (void (*)(void))AIC_REGS->AIC_IVR;
+
+    // If we had the AIC "Protected Mode" enabled, we'd want to write a dummy value back to AIC_IVR
+    // here.
+
+    // Call our handler.
+    handler_func();
+
+    // We have to tell the AIC when our interrupt is done. Do that with a dummy write to AIC_EOICR.
+    AIC_REGS->AIC_EOICR = 0;
+}
+```
+
+The last thing we need to do is provide the AIC with what is called a "Spurious Interrupt Handler".
+If an interrupt source is asserted then de-asserted before we read the `AIC_IVR` register, then the
+AIC will have the Spurious Interrupt Handler in that register instead.
+
+```c++
+static void SpuriousInterruptHandler(void)
+{
+    puts("Hit our spurious interrupt handler");
+}
+
+// Tell the AIC about our handler sometime during application initialization.
+AIC_REGS->AIC_SPU = uint32_t(SpuriousInterruptHandler);
+```
+
+To add more interrupt handlers, just repeat the first two parts of this example for each perpiheral
+interrupt source.
+
+One thing you might realize is that this example is NOT the most optimal way to handle interrupts.
+First, interrupt nesting will not work. You would need to add extra code to your `IRQ_Handler()` to
+revert the processor mode back to User or System as well as save extra context. A lack of nesting
+just means that even higher priority interrupts will wait until your current interrupt is done before
+being executed. Whether you need this will depend on your application. Second, you may be able to get
+extra performance by having your `IRQ_Handler()` branch to the handler function and leave each individual
+handler to use the `interrupt` attribute. You would also need each handler to write to `AIC_EOICR` when
+they are done. This does require more work on your part to remember to add those on every handler,
+but you might also be able to use `interrupt_save_fp` only in handlers that need it.
+
+#### Generic Interrupt Controller
+You will want to consult the datasheet for your device for more info. The GIC is more complex than
+the AIC because it supports things like virtualization, multiple cores, and security extensions.
+
+Unfortunately, as of this writing I do not have a device with a GIC and so I cannot yet offer much
+guidance in this document. Luckily, CMSIS has an implementation that you could copy into your project
+and use. You can find the source under the toolchain install location at `CMSIS/Core/Source/irq_ctrl_gic.c`
+and the header at `CMSIS/Core/include/a-profile/irq_ctrl.h`.
+
+The GIC appears to supply only vector numbers, not handlers. The CMSIS code contains a table of
+handlers that its `IRQ_Handler()` will use to index into its table. The last index in the table is
+for the Spurious Interrupt Handler. Like with the AIC, this is supplied when an interrupt source
+asserts and de-asserts before it can be read and handled.
+
+If you do use the CMSIS code, you might need to modify its `IRQ_Handler()` to use the `interrupt`
+attribute so that the compiler can properly set up a stack and save and restore registers. See the
+`IRQ_Handler()` example above for the AIC for more info.
 
 
 ## Peripheral IDs

@@ -10,7 +10,7 @@
 project = 'mchpClang'
 copyright = '2025, Jesse DeGuire'
 author = 'Jesse DeGuire'
-doc_version = '0.2.0'
+doc_version = '0.2.1'
 
 
 # -- General configuration ---------------------------------------------------

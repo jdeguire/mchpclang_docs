@@ -10,6 +10,8 @@
 
 ```{todo}
 Find a better theme and see if I can increase the width.
+We can download themes from GitHub. We just need to point Sphinx to their directories.
+https://www.sphinx-doc.org/en/master/usage/theming.html
 ```
 
 Welcome! This is a distribution of Clang and LLVM with a boring name that includes all the support
