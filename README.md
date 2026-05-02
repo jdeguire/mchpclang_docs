@@ -30,6 +30,13 @@ To build the docs into a series of HTML files, simply run `make html` from this 
 the `make.bat` file should run. On other systems, GNU Make will be run and will use the `Makefile`
 in this directory.
 
+These docs use a Sphinx theme provided by [Read the Docs](https://www.readthedocs.org). The sources
+are bundled here so that you do not need to install them as a Python package. You can get the sources
+on GitHub at <https://github.com/readthedocs/sphinx_rtd_theme>. If, for whatever reason, the docs
+do not build because of some issue with the theme, you can edit `source/conf.py` to change the
+`html_theme` variable to something like "classic". This is a built-in theme that looks like the old
+Python documentation.
+
 ## Editing the Docs
 These documents are written using the MyST flavor of Markdown. Learn more at the official 
 [MyST website](https://myst-parser.readthedocs.io). If you use Visual Studio Code, the `MyST-Markdown`

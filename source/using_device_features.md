@@ -1,13 +1,7 @@
-% Copyright (c) 2025, Jesse DeGuire
+% Copyright (c) 2026, Jesse DeGuire
 % All rights reserved.
 % Licensed using a BSD 3-clause license, see LICENSE at the root of this project.
 % Find this project on GitHub at https://github.com/jdeguire/mchpclang_docs.
-
-```{todo}
-Split this chapter up into different sections. Maybe one for accessing peripherals, another for
-config registers, another for interrupts, another for built-in macros (ACLE, __clang__, and PIC32
-macros), and fifth for built-in functions (CMSIS).
-```
 
 # Using Device Features
 
@@ -68,47 +62,6 @@ then you can use this snippet to select the correct file.
 #  include <xc.h>
 #endif
 ```
-
-
-## CMSIS
-Arm® provides a device support library called the Common Microcontroller Software Interface Standard,
-or CMSIS (pronounced "Sim-sis"). CMSIS is a common base set of macros and routines that will work on
-any Cortex®-M MCU and Cortex-A MPUs that use the ARMv7-A instruction set, no matter the vendor. It
-includes macros and routines to do things like do cache maintenance operations, access system control
-registers, and handle interrupts.
-
-This distrubtion includes an at-the-time recent version of the core CMSIS libraries. These are included
-from the device-specific header files so you do not have to do this manually. The next sections may
-include some CMSIS routines where applicable, but you should check out the official Arm CMSIS website
-if you want the complete documentation. You can find more info at <https://www.arm.com/technologies/cmsis>.
-
-CMSIS does not support Arm products that predate the Cortex branding, so this distribution provides
-a small set of CMSIS-like functionality you can use. It is intended to support ARMv4 through ARMv6
-devices, but most testing was done using the ARM926EJ-S (ARMv5TE). Like CMSIS, this will be included
-from device-specific header files for appropriate devices. You will still want to consult documentation
-for your CPU to figure out which features apply to your device.
-
-Arm provides additional libraries under the CMSIS umbrella, such as CMSIS-NN for neural network math
-or CMSIS-DAP for using their Debug Access Protocol. This additional libraries are NOT provided with
-this distribution.
-
-CMSIS also has examples for how to create device-specific files, like headers, linker scripts, and
-startup code. This distribution used those examples to create the device-specific files included
-with it.
-
-
-## ACLE
-Clang provides support for the Arm C Language Extensions, or ACLE. These are extensions that are
-built into the compiler to provide things like predefined macros to provide device info, more builtin
-functions to access device features beyond what CMSIS provides, and even new attributes (think the
-GNU `__attribute__` keyword or the C++11 `[[attr]]` syntax).
-
-This document may highlight some ACLE macros or functions, but is not comprehensive. You can find more
-information on the Arm developer site at <https://developer.arm.com/Architectures/Arm%20C%20Language%20Extensions>.
-There are separate specification documents for base ACLE support, SIMD operations for MCUs and MPUs,
-and security extensions.
-
-You can see what other extensions Clang supports in the Clang documentation [here](llvm:clang/html/LanguageExtensions.html).
 
 
 ## Peripheral Registers
@@ -361,10 +314,10 @@ ADC0_REGS->ADC_FLTCTRL |= DC_FLTCTRL_OVRSAM_128_SAMPLES;
 ```
 
 ### Additional Helpful Macros
-CMSIS provides a couple of useful macros for setting and getting fields from registers. These are the
-`_FLD2VAL(field, value)` and `_VAL2FLD(field, value)` function-like macros. Both macros take a field
-name and a value. `_FLD2VAL()` is used to extract a field from a register and `_VAL2FLD()` is used
-to set a field.
+[CMSIS](builtin_macros.md#cmsis) provides a couple of useful macros for setting and getting fields
+from registers. These are the `_FLD2VAL(field, value)` and `_VAL2FLD(field, value)` function-like
+macros. Both macros take a field name and a value. `_FLD2VAL()` is used to extract a field from a
+register and `_VAL2FLD()` is used to set a field.
 
 `_FLD2VAL()` is probably the more useful one. To use it, give it the name of the field you want and
 the name of the register or variable to extract it from. For example, if you want to get the oversample
@@ -814,6 +767,8 @@ static void ConfigurePITInterrupt(void)
 }
 ```
 
+To add more interrupt handlers, just repeat these first two steps for each perpiheral interrupt source.
+
 Now we can supply our `IRQ_Handler()` that will run whenever the AIC says we have a new interrupt
 request to handle. The AIC does allow you to specify some interrupts as FIQ interrupts instead, but
 this example will not do that to keep things simple. Clang provides the `interrupt` and `interrupt_save_fp`
@@ -855,9 +810,6 @@ static void SpuriousInterruptHandler(void)
 AIC_REGS->AIC_SPU = uint32_t(SpuriousInterruptHandler);
 ```
 
-To add more interrupt handlers, just repeat the first two parts of this example for each perpiheral
-interrupt source.
-
 One thing you might realize is that this example is NOT the most optimal way to handle interrupts.
 First, interrupt nesting will not work. You would need to add extra code to your `IRQ_Handler()` to
 revert the processor mode back to User or System as well as save extra context. A lack of nesting
@@ -885,14 +837,3 @@ asserts and de-asserts before it can be read and handled.
 If you do use the CMSIS code, you might need to modify its `IRQ_Handler()` to use the `interrupt`
 attribute so that the compiler can properly set up a stack and save and restore registers. See the
 `IRQ_Handler()` example above for the AIC for more info.
-
-
-## Peripheral IDs
-TODO
-
-
-## Device Information Macros
-The PIC32 macros in the config files and maybe some of the ACLE macros for architecture.
-
-## Other Useful Macros
-Things like the _BASE and _ADDR macros in the header files.

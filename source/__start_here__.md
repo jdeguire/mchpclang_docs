@@ -1,4 +1,4 @@
-% Copyright (c) 2025, Jesse DeGuire
+% Copyright (c) 2026, Jesse DeGuire
 % All rights reserved.
 % Licensed using a BSD 3-clause license, see LICENSE at the root of this project.
 % Find this project on GitHub at https://github.com/jdeguire/mchpclang_docs.
@@ -35,6 +35,8 @@ Add links here or below for the LLVM and Clang docs.
 
 compiling_and_linking.md
 other_tools.md
+builtin_macros.md
+builtin_functions.md
 using_device_features.md
 ```
 

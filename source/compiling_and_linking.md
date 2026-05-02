@@ -1,4 +1,4 @@
-% Copyright (c) 2025, Jesse DeGuire
+% Copyright (c) 2026, Jesse DeGuire
 % All rights reserved.
 % Licensed using a BSD 3-clause license, see LICENSE at the root of this project.
 % Find this project on GitHub at https://github.com/jdeguire/mchpclang_docs.
@@ -16,9 +16,9 @@ will use "Clang" to refer to either of these executables.
 ## Some Simple Examples
 This section will provide a few simple examples of how you can run Clang. These will not show you
 every option--there are a LOT of them--but this is enough to get you to understand the basic workflow.
-For any "real" project, you'd probably use a build system like [CMake](https://cmake.org),
-[Meson](https://mesonbuild.com/), or [SCons](https://scons.org/) to generate the right Clang calls
-for you.
+For any complex project, you'd probably use a build system like [CMake](https://cmake.org),
+[Meson](https://mesonbuild.com/), [SCons](https://scons.org/), or [PCons](https://pcons.org/) to
+generate the right Clang calls for you.
 
 The absolute most basic command for building a simple `hello.cpp` app is the following.
 

@@ -52,8 +52,19 @@ exclude_patterns = []
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 # ----------------------------------------------------------------------------
 
+# Tell Sphinx where it can find themes locally. This is a list of strings containing paths relative
+# to the directory containing this file. Sphinx looks for subdirectories that contain a "theme.toml"
+# or "theme.conf" file. The name of the subdirectory is the name of the theme.
+html_theme_path = [
+    '../themes'
+]
+
 # Theme and options for that theme
-html_theme = 'classic'
+# You can use a built-in theme if this does not work. The "classic" theme will work and looks like
+# old Python documentation.
+# TODO: Follow the stuff here to make the content area wider since these options do not work:
+#       https://stackoverflow.com/questions/23211695/modifying-content-width-of-the-sphinx-theme-read-the-docs
+html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'sidebarwidth': '250',
     'body_max_width': '1000'
