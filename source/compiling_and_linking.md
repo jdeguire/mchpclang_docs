@@ -65,7 +65,7 @@ clang++ -o hello.elf hello.o foo.o bar.o
 You can also tell the linker to link in external libraries. By convention, static libraries on Unix
 and baremetal systems always start with `lib` and end in `.a`. You can use the **-l** option to
 the linker to link in a static library that follows those conventions. For example, C math functions
-are often in their own library called `libm.a`. To be sure you link those in, then you would do the
+are often in their own library called `libm.a`. To be sure you link those in, you would do the
 following. Notice that you need only the base name of the library without the `lib` or `.a`. 
 
 ```
@@ -175,7 +175,7 @@ can be one of the following. You can omit the level to get level 1.
   of your final binary.
   - **g**: This is equivalent to level 1, but is here for compatibility with GCC.
   - **s**: Optimize for size. This is sort of like level 2 but will also try to reduce code size.
-  - **z**: Optimize more for size. This will do what it can to minimizie code size.
+  - **z**: Optimize more for size. This will do what it can to minimize code size.
 - **-o \<file\>**  
 Set the name of the output file. If the `-c` option is present, this will be the name of the resulting
 object file and so you would normally end it with `.o`. Otherwise, this will be the name of the resulting
