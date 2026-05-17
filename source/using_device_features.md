@@ -314,10 +314,10 @@ ADC0_REGS->ADC_FLTCTRL |= DC_FLTCTRL_OVRSAM_128_SAMPLES;
 ```
 
 ### Additional Helpful Macros
-[CMSIS](builtin_macros.md#cmsis) provides a couple of useful macros for setting and getting fields
-from registers. These are the `_FLD2VAL(field, value)` and `_VAL2FLD(field, value)` function-like
-macros. Both macros take a field name and a value. `_FLD2VAL()` is used to extract a field from a
-register and `_VAL2FLD()` is used to set a field.
+CMSIS provides a couple of useful macros for setting and getting fields from registers. These are the
+`_FLD2VAL(field, value)` and `_VAL2FLD(field, value)` function-like macros. Both macros take a field
+name and a value. `_FLD2VAL()` is used to extract a field from a register and `_VAL2FLD()` is used to
+set a field.
 
 `_FLD2VAL()` is probably the more useful one. To use it, give it the name of the field you want and
 the name of the register or variable to extract it from. For example, if you want to get the oversample

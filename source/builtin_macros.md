@@ -1,4 +1,4 @@
->% Copyright (c) 2026, Jesse DeGuire
+% Copyright (c) 2026, Jesse DeGuire
 % All rights reserved.
 % Licensed using a BSD 3-clause license, see LICENSE at the root of this project.
 % Find this project on GitHub at https://github.com/jdeguire/mchpclang_docs.
@@ -202,10 +202,71 @@ type, and pin count. These are not defined by the compiler but rather by the dev
 using the `--config` compiler option. You can have a look in those files if you want to see what is
 available for you to use.
 
+Macros are provided based on the name of your device. They will use the name of the config file you
+passed to the compiler, but in upper-case. There is a form surrounded by double underscores and a
+form that only starts with two underscores. For example, `__PIC32CZ8110CA80208` and `__PIC32CZ8110CA80208__`
+are defined for PIC32CZ8110CA80208 and `__SAME54P20A` and `__SAME54P20A__` are defined for the SAME54P20A.
+For devices that start with "PIC32", extra macros are defined that omit the "PIC" portion such as
+`__32CZ8110CA80208` and `__32CZ8110CA80208__`. For parts that start with "SAM" or "ATSAM", extra
+macros are defined that add the "AT" to the start such as `__ATSAME54P20A` and `__ATSAME54P20A__`.
+These are available to add a bit of compatibility with Microchip's toolchains.
+
+Addtional macros are avaiable that apply to a device family, such as "PIC32C", "PIC32CZ", "SAMD", 
+"SAM9", and so on. Like the device name macros, these are available surrounded in double underscores
+and starting with double underscores. Some examples are `__PIC32C__`/`__PIC32C`, `__PIC32CX__`/`__PIC32CX`,
+and `__SAME`/`__SAME__`. Some devices have additional macros that are more "granular" that these
+family macros. These are specifc to the device family, so you might want to check the config file
+for what is available. Some examples include `__PIC32CZCA80__`/`__PIC32CZCA80`, `__SAM9X7__`/`__SAM9X7`,
+and `__SAMD21__`/`__SAMD21`.
+
+Finally, the config files provide macros to indicate device features you can use in your code. Some
+of these macros are like the `__PIC32_<feature>` macros you will find in Microchip toolchains, but
+these start with `__DEVICE_` instead.
+
 - `__PIC32` and `__PIC32__`  
 These are always defined in the config files to provide some compatibility with code that is excepting
-Microchip's XC32 toolchain.
-
+Microchip's XC32 toolchain. These are defined even for SAM devices.
+- `__DEVICE_NAME`  
+This is a string literal containing the device's name in all upper-case.
+- `__DEVICE_PIN_COUNT`  
+This is an integer literal indicating the number of usable pins the device has. Devices that are
+available in mutliple pacakge types will have the same number of usable pins. Extra pins that exist
+only as part of a specific package are usually not used or grounded.
+- `__DEVICE_CPU_NAME`  
+This is a string literal containg the name of the CPU in lower-case. This is what would get passed
+to the compiler's `-mtune` option. Some examples are `"cortex-m0plus"`, `"cortex-m7"`, and `amr926ej-s`.
+- `__DEVICE_FPU_NAME`  
+This is a string literal containing the name of the FPU in lower-case or `"none"` if the device does
+not have an FPU. This is what would get passed to the compiler's `-mfpu` option. Some examples are
+`"neon-vfpv4"`, `"fpv5-d16"`, or `"fpv5-sp-d16"`.
+- `__DEVICE_ARCH`  
+This is a string literal containing the name of the CPU architecture in lower-case. This is what
+would get passed to the compiler's `-march` option. Some examples are `"armv7em"`, `"armv5te"`, and
+`"armv8m.main"`.
+- `__DEVICE_HAS_L1CACHE`  
+Defined if the device has an L1 data or instruction cache integrated into the CPU core. This may not
+be defined for devices with a separate cache peripheral, such as the CMCC peripheral.
+- `__DEVICE_HAS_L1DCACHE`
+Defined if the device has an L1 data cache integrated into the CPU core.
+- `__DEVICE_HAS_L1ICACHE`
+Defined if the device has an L1 instruction cache integrated into the CPU core.
+- `__DEVICE_HAS_FPU64`  
+This is defined if the device an FPU with support for 64-bit floating point operations.
+- `__DEVICE_HAS_FPU32`  
+This is defined if the device an FPU with support for 32-bit floating point operations.
+- `__DEVICE_HAS_FPU16`  
+This is defined if the device an FPU with support for 16-bit floating point operations. This is not
+defined for FPUs whose only 16-bit operations are conversion operations. In other words, this would
+be defined only for FPUs with `fullfp16` in their name.
+- `__DEVICE_HAS_SIMD`  
+This is defined if the device supports a SIMD extension such as NEON or MVE.
+- `__DEVICE_HAS_NEON`  
+This is defined if the device supports the NEON SIMD extension.
+- `__DEVICE_HAS_MVE`  
+This is defined if the device supports the M-profile Vector Extensions.
+- `__DEVICE_HAS_CMSE`  
+This is defined if the device supports the Cortex-M Security Extensions. The config file will supply
+the `-mcmse` compiler option for devices that support CMSE.
 
 
 ## Device Feature Macros
@@ -285,65 +346,23 @@ documentation for a list of these macros.
 
 
 ## Other Useful Macros
-Things like the _BASE and _ADDR macros in the header files. Also mention the ID macros for things
-like GCLK, PAC, and DMA.
+The device-specific header files provide some macros to describe the device's memory regions and
+peripheral. The headers are located in the toolchain install location under the `arm/include/proc`
+subdirectory.
 
+The memory regions are specific to the device and so you will want to have a look in the header to see
+what is available. The macros ending in `_BASE` and `_ADDR` give the starting address of the memory
+region. The macros ending in `_SIZE` give the size of the region in bytes. The macros ending in
+`_PAGESIZE` give the page size of the region in bytes; this is generally most applicable to flash
+regions because this is the smallest number of bytes that can be erased for reprogramming.
 
+Similar `_BASE` macros are available for all of the peripheral instances on the device. These are
+described [here](./using_device_features.md#base-address-macros).
 
-
-## Additional Info
-Here are a few places you can look if you want to find more built-in macros or functions that were
-not described here.
-
-```{todo}
-Move this section to an "External Resources" chapter that also includes links to LLVM and Clang docs.
-This new chapter can come before this one.
-```
-
-### CMSIS
-Arm® provides a device support library called the Common Microcontroller Software Interface Standard,
-or CMSIS (pronounced "Sim-sis"). CMSIS is a common base set of macros and routines that will work on
-any Cortex®-M MCU and Cortex-A MPUs that use the ARMv7-A instruction set, no matter the vendor. It
-includes macros and routines to do things like do cache maintenance operations, access system control
-registers, and handle interrupts.
-
-This distrubtion includes an at-the-time recent version of the core CMSIS libraries. These are included
-from the device-specific header files so you do not have to do this manually. You can find more info
-about CMSIS at <https://www.arm.com/technologies/cmsis>.
-
-CMSIS does not support Arm products that predate the Cortex branding, so this distribution provides
-a small set of CMSIS-like functionality you can use. It is intended to support ARMv4 through ARMv6
-devices, but most testing was done using the ARM926EJ-S (ARMv5TE). Like CMSIS, this will be included
-from device-specific header files for appropriate devices. You will still want to consult documentation
-for your CPU to figure out which features apply to your device.
-
-Arm provides additional libraries under the CMSIS umbrella, such as CMSIS-NN for neural network math
-or CMSIS-DAP for using their Debug Access Protocol. This additional libraries are NOT provided with
-this distribution.
-
-CMSIS also has examples for how to create device-specific files, like headers, linker scripts, and
-startup code. This distribution used those examples to create the device-specific files included
-with it.
-
-### ACLE
-Clang provides support for the Arm C Language Extensions, or ACLE. These are extensions that are
-built into the compiler to provide things like predefined macros to provide device info, more builtin
-functions to access device features beyond what CMSIS provides, and even new attributes (think the
-GNU `__attribute__` keyword or the C++11 `[[attr]]` syntax).
-
-You can find more information on the Arm developer site at <https://developer.arm.com/Architectures/Arm%20C%20Language%20Extensions>.
-There are separate specification documents for base ACLE support, SIMD operations for MCUs and MPUs,
-and security extensions.
-
-### Clang Documentation
-You can find more information on macros built into Clang by referring to the "Clang Language Extensions"
-document. You can find that on the web at <https://clang.llvm.org/docs/LanguageExtensions.html> or
-in the mchpClang install location [here](llvm:clang/html/LanguageExtensions.html).
-
-```{todo}
-Put a few links to the first few sections of the Clang manual in here to help readers find the
-section they want. Include a short description of each link.
-```
-
-Many macros and functions supported by Clang are also supoprted by GCC, so you can check out GCC
-docs too for even more info.
+The header files also provide lots of macros to provide info about the peripheral instances on the
+devices. Of particular note are ones with `_ID` in the name. Some peripherals need to refer to other
+peripherals by an ID value. Examples of this are DMA controllers that can trigger on events from
+other peripherals or peripherals that distribute clocks around the device. Usually, peripherals that
+need to access other peripherals will have a table in their datasheet section of ID values of the
+peripherals they can access. Additionally, some datasheets will contain a "Perpiheral Dependencies"
+section for each peripheral with a table listing the IDs of all peripheral instances.

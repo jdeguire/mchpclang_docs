@@ -8,11 +8,20 @@
 This chapter describes some predefined functions you may find useful.
 
 
+## Common Functions
+TODO
+This will refer to _BKPT() and other function that get used more regularly.
+
+## Memory Barrier Functions
+
+
 ## Cache Maintenance Functions
 TODO
 
 ## System Control Functions
 TODO
+CP15 registers on the microprocessors and control registers on the microcontrollers.
 
 ## Compiler Built-in Functions
 TODO
+
