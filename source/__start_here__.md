@@ -8,12 +8,6 @@
 # mchpClang Documentation
 *Docs version {{version}}*
 
-```{todo}
-Find a better theme and see if I can increase the width.
-We can download themes from GitHub. We just need to point Sphinx to their directories.
-https://www.sphinx-doc.org/en/master/usage/theming.html
-```
-
 Welcome! This is a distribution of Clang and LLVM with a boring name that includes all the support
 files you need to build baremetal projects for Microchip's 32-bit PIC® and SAM devices. You can use
 this as an alternative to Microchip's MPLAB® XC32 compiler, but see the [](#disclaimer) below to see
@@ -24,10 +18,6 @@ some basics. You will want to have at least a little bit of experience running C
 purposefully largely compatible with GCC). These are more meant to help you with stuff that is specific
 to the PIC32 and SAM devices, such as what you need to do to run the tools, access device registers,
 and stuff like that.
-
-```{todo}
-Add links here or below for the LLVM and Clang docs.
-```
 
 ```{toctree}
 :maxdepth: 2
