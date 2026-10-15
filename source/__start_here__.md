@@ -29,6 +29,7 @@ external_resources.md
 builtin_macros.md
 builtin_functions.md
 using_device_features.md
+additional_customization.md
 ```
 
 ## Supported Devices
