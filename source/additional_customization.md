@@ -82,6 +82,26 @@ error code you return like this will be made positive then stored in your applic
 variable (see [](#custom-errno-handling) for more info about `errno`).
 
 
+## Clock and Time Support
+If you want to use C functions like `clock()` or `timespec_get()`, you need to implement two functions
+that provide LLVM-libc with `timespec` structures. This is a structure that contains a field for
+seconds and another for nanoseconds.
+
+```c++
+extern "C" bool __llvm_libc_timespec_get_utc(struct timespec *ts);
+extern "C" bool __llvm_libc_timespec_get_active(struct timespec *ts);
+```
+
+The only difference between the two is that `utc` is used to get the time since an implementation
+defined epoch (Unix time is used here, which starts 1-Jan-1970) and `active` is used to get the time
+since process or application start.
+
+Note that on baremetal ARM platforms, the standard `CLOCKS_PER_SEC` macro is only 100. This means
+that `clock()` will return a time with only 10ms resolution. This is done to maintain compatibility
+with a feature called "semihosting". This is a mechanism to let ARM devices run standard I/O through
+a connected debugger tool to the host computer.
+
+
 ## Custom Exit Functions
 The `exit()` function in LLVM-libc calls two other functions that you can customize. Both of these
 have weak implementations in the C startup code for your device. You can customize them by providing
@@ -295,12 +315,7 @@ that.
 
 ### Some Usable Symbols
 The linker scripts define a bunch of symbols, some of which you saw in the previous [](#thread-local-variables)
-section. Here are a few more you can use in your code.
-
-The four data sections are, in order from lowest to highest memory address: `.data`, `.tdata`,
-`.tbss`, `.bss`. This lets the TLS sections stay together while also letting the startup code
-init the two data sections and two bss sections as though they were one. Some of these symbols
-cover both the TLS and non-TLS sections as though there were one.
+section. Here is a larger list of symbols you can access in your code.
 
 | Symbol              | Description |
 | ------------------- | ----------- |
@@ -336,6 +351,65 @@ cover both the TLS and non-TLS sections as though there were one.
 | __STACK_SIZE        | Minimum stack size (set this on the linker command line). |
 | __stack             | Initial top of stack at startup. |
 
+The four data sections, `.data`, `.tdata`, `.tbss`, and `.bss`, can make understanding these symbols
+confusing. Here is a diagram to try to illustrate how they relate. This is just meant to show relative
+positioning, not an absolute memory layout. Notice that some symbols cover two sections, such as
+`__bss_size` being the size of both `.bss` and `.tbss`.
+
+```
+                                               Highest Address
+                                        -->    ---------------    <-- __stack
+                                        |      |             |
+                                        |      |             |
+                           __STACK_SIZE |      |   .stack    |
+                                        |      |             |
+                                        |      |             |
+                                        -->    ---------------    <-- (__stack - __STACK_SIZE)
+                                               |             |
+                                               |    Free     |
+                                               |             |
+                                        -->    ---------------    <--| __heap_end, __llvm_libc_heap_limit,
+                                        |      |             |       | __stack_liimt
+                                        |      |             |
+                            __HEAP_SIZE |      |    .heap    |
+                                        |      |             |
+                                        -->    |             |    <--| __heap_start (aligned to 8-byte boundary after .bss)
+                                        -->    ---------------    <--| __bss_end, __end
+                                        |      |             |
+                                        |      |             |
+                            __bss_size  |      |    .bss     |
+                                        |      |             |
+                                        |      |             |
+                 -->              -->   |      ---------------    <--| __non_tls_bss_start, __tls_end,
+                 |                |     |      |             |       | __tbss_end
+                 |                |     |      |             |
+      __tls_size |    __tbss_size |     |      |    .tbss    |
+                 |                |     |      |             |
+                 |                |     |      |             |       | __edata, 
+            -->  |                -->   -->    ---------------    <--| __tdata_end, __data_end,
+            |    |                |            |             |       | __tbss_start, __bss_start
+            |    |                |            |             |
+            |    |   __tdata_size |            |   .tdata    |
+            |    |                |            |             |
+            |    |                |            |             |
+__data_size |    -->              -->          ---------------    <--| __non_tls_data_end, __tls_base,
+            |                                  |             |       | __tdata_start
+            |                                  |             |
+            |                                  |    .data    |
+            |                                  |             |
+            |                                  |             |
+            -->                                ---------------    <--| __data_start
+                                               Lowest Address 
+```
+
+Microcontrollers have additional `source` symbols to indicate the location in flash at which
+initialization data for the `.data` and `.tdata` sections is located. The startup code copies the
+data from flash into these two sections. The source data is located just after the code sections,
+which include `.text` and special ARM sections for handling exceptions. Microprocessors do not need
+this because the entire application is loaded into RAM from a bootloader and therefore `.data` and
+`.tdata` are aleady initialized.
+
+
 ### Memory Regions and Sections
 Near the top of the linker scripts, you will see a list of stuff inside of a `MEMORY` command. As
 you probably guessed, this describes the memory regions in your device. You will see the starting
@@ -352,7 +426,8 @@ ARM-specific sections in here, too.
 
 You can add your own section here if you wanted and put stuff in there using the `section` attribute
 for functions and variables. Here is an example of what that could look like for a simple section
-that goes into the RAM on your device.
+that goes into the RAM on your device. The actual name of the RAM region varies by device, so you
+will need to use the proper name in your actual script.
 
 ```c
 /* In the linker script. */
